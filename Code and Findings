@@ -1,0 +1,193 @@
+
+```{R}
+#a
+Input = ("
+         Victim       Defandent     DP  Count
+         White        White        Yes     53
+         White        White        No      414
+         White        Black        Yes     11
+         White        Black        No      37
+         Black        White        Yes     0
+         Black        White        No      16
+         Black        Black        Yes     4
+         Black        Black        No      139
+         ")
+Florida.DP = read.table(textConnection(Input), header=T)
+
+str(Florida.DP)
+
+
+
+```
+
+#Fit a loglinear model with just the main effects (Use glm() with family= poisson). Interpret results. How well does this model fit?
+
+```{R}
+
+Florida.DP$Victim = factor(Florida.DP$Victim,
+                           levels=c("White","Black"))
+
+Florida.DP$Defandent    = factor(Florida.DP$Defandent,
+                                 levels=c("White","Black"))
+
+Florida.DP$DP = factor(Florida.DP$DP,
+                       levels=unique(Florida.DP$DP))
+Florida.DP
+str(Florida.DP)
+
+
+
+###run main effects model
+model1<- glm(Count ~ DP + Victim + Defandent, 
+             data = Florida.DP, family = poisson)
+summary(model1)
+
+
+```
+
+
+```{R}
+#log(mu)=3.61723+2.18737DP_No-1.17526Vict_Black-0.92774Def_Black
+#mu is the expected cell freq
+exp(3.61723)
+#37.23429 expected cell freq for a white def getting the DP 
+#for killing a white person 
+exp(2.18737)
+#the estimated odds for not recieving the DP 8.911744 times 
+#the estimated odds for 
+#recieving DP, no matter what race the defandent or victim is.
+exp(-1.17526)
+#the est. odds for a black victim 0.3087387 times the estimated
+#odds for a white victim, no matter whether 
+#the DP was given to def or the def race
+exp(-0.92774)
+#the est. odds for a black def 0.3954464 times the estimated odds for a white 
+#def, no matter whether the DP was given to def or the victim race
+#all terms are significant
+
+#assessing model fit: 
+#residual dev. 402.84 with 4 df, indicating over dispersion 
+#poision model E(mu)=Var(mu), not meeting this and that more
+#variance that what is being accounted for
+
+pchisq(deviance(model1), df = df.residual(model1), lower.tail = F)
+#reject null hypothesis that this model is fitting well
+cbind(model1$data, fitted(model1))
+#model is not fitting well need to include some interactions
+```
+
+
+#Fit a loglinear homogeneous association model  (two-way interaction terms). Interpret results. 
+#How well does this model fit? Compare to previous model. Are there any terms you would like to remove?
+
+```{R}
+# homogeneous model 
+model2<- glm(Count ~ Victim*Defandent+ Victim*DP + Defandent*DP, 
+             data = Florida.DP, family = poisson)
+summary(model2)
+
+
+#log(mu)=3.9668-5.6696 Vict_Black-1.5525 Def_Black + 2.0595 DP_No
+#+ 4.5950 vic&def_black+2.4044 Vic_black&DP_No 
+#-0.8678 Def_black&DP_No
+
+
+exp(3.9668)
+#52.81525 expected cell freq for a white def getting 
+#the DP for killing a white person 
+exp(-5.6696)
+#the est. odds for a black victim 0.003449245 times the estimated odds
+#for a white 
+#victim, when the def is white and they did receive the DP
+exp(-1.5525)
+#the est. odds for a black def 0.211718 times the estimated
+#odds for a white def, when the victim is white and 
+#they did receive the DP
+exp(2.0595)
+#the estimated odds for not receiving the DP 7.842048 times 
+#the estimated odds for receiving DP, when the 
+#def is white and the victim is white 
+exp(4.5950)
+#the estimated odds for  a black victim when the 
+#defendant is black is 98.98814
+#times the estimated odds for a white victim, 
+#no matter whether they received the DP
+#OR the estimated odds for a black defendant when the victim
+#is black is 98.98814
+#times the estimated odds for a white defendant, 
+#no matter whether they received the DP
+exp(2.4044)
+#the estimated odds for  a black victim when the def 
+#didn't receive the DP is 11.07179
+#times the estimated odds for a white victim,
+#no matter which race the def is.
+exp(-0.8678)
+#the estimated odds for  a black def when the 
+#def didn't receive the DP is 0.4198743
+#times the estimated odds for a white def,
+#no matter which race the victim is.
+
+#all terms are significant
+```
+
+```{R}
+pchisq(deviance(model2), df = df.residual(model2), lower.tail = F)
+#fail to reject null hypothesis that this model is fitting well
+
+View(model2$data)
+cbind(model2$data, fitted(model2))
+#model is fitting well
+
+#ho reduced model (main effect model) is preferred
+anova(model1,model2,test="Chisq")
+#fuller model with interactions is preferred
+#no would not like to remove any terms
+
+
+
+#Fit a loglinear saturated model  (including three-way interaction term). 
+#Interpret results. How well does this model fit? Compare to previous model. Which model is preferred.
+
+model3<- glm(Count ~ Victim*Defandent*DP, 
+             data = Florida.DP, family = poisson)
+summary(model3)
+#log(mu)=3.9703-26.2729 Vict_Black-1.5724 Def_Black + 2.0556 DP_No + 25.2613 vic&def_black+
+#23.0196 Vic_black&DP_No -0.8426 Def_black&DP_No- 20.6844vic&def_black&DP_No
+exp(3.9703)
+#53.00043 expected cell freq for a white def getting the DP for killing a white person 
+exp(-26.2729)
+#the est. odds for a black victim 3.88x10-12 (close to 0) times the estimated odds for a white 
+#victim, when the def is white and the did receive the DP
+exp(-1.5724)
+#the est. odds for a black def 0.2075465 times the estimated odds for a white 
+#def, when the victim is white and the did receive the DP
+exp(2.0556)
+#the estimated odds for not receiving the DP 7.811523 times the estimated odds for 
+#receiving DP, when the def is white and the victim is white 
+exp(25.2613)
+#the estimated odds for  a black victim when the defendant is black is 93506800199
+#times the estimated odds for a white victim, when the def did received the DP
+exp(23.0196)
+#the estimated odds for  a black victim when the def didn't receive the DP is 9937685665
+#times the estimated odds for a white victim, when the def is white.
+exp(-0.8426)
+#the estimated odds for  a black def when the def didn't receive the DP is 0.4305895
+#times the estimated odds for a white def, when the victim is white.
+exp(-20.6844)
+#the estimated odds for  a black def who didn't receive the DP killed a black person
+#is 0.000000001 times the estimated odds for a white def getting the DP for killing 
+#a white person
+
+#not all terms are significant, 3 way interaction term, 2 of the 2 way interaction terms are 
+#not sign
+
+pchisq(deviance(model3), df = df.residual(model3), lower.tail = F)
+#fail to reject null hypothesis that this model is fitting well
+
+cbind(model3$data, fitted(model3))
+cbind(model3$data, round(fitted(model3),2))
+#model is exactly predicting the observed counts 
+
+anova(model2,model3,test="Chisq")
+#reduced model with only two-way interactions is preferred
+```
